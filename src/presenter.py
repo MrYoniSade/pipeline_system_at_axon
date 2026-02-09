@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import cv2
 import numpy as np
@@ -6,8 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 class Presenter:
-    def __init__(self, output_queue):
+    def __init__(self, output_queue, frame_time=0.04):
         self.output_queue = output_queue
+        self.frame_time = frame_time
         self.stop_event = False
         logger.info("Presenter initialized.")
 
@@ -43,6 +45,9 @@ class Presenter:
                 logger.debug("Processing frame and detections in Presenter.")
                 # Display the frame in the upper-left corner
                 cv2.imshow(window_name, frame)
+
+                # Wait for the specified frame time
+                await asyncio.sleep(self.frame_time)
 
                 # Wait for a short period to allow real-time display
                 if cv2.waitKey(1) & 0xFF == ord('q'):
