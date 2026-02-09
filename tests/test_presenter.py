@@ -1,6 +1,10 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import asyncio
+
+import cv2
+import numpy as np
+
 from src.presenter import Presenter
 
 
@@ -34,6 +38,19 @@ class TestPresenter(unittest.IsolatedAsyncioTestCase):
 
         # Run the Presenter asynchronously
         await presenter.async_run()
+
+    async def test_apply_blur(self):
+        # Create a mock frame with some variation (e.g., a gradient)
+        mock_frame = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+        # Apply the blur using the Presenter class
+        blurred_frame = Presenter.apply_blur(mock_frame)
+
+        # Ensure the blurred frame is not identical to the original frame
+        self.assertFalse(np.array_equal(mock_frame, blurred_frame), "The frame was not blurred.")
+
+        # Optionally, check if the blurred frame still has the same shape
+        self.assertEqual(mock_frame.shape, blurred_frame.shape, "The blurred frame shape is incorrect.")
 
 
 if __name__ == "__main__":

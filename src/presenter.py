@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,22 @@ class Presenter:
                     logger.info("Received sentinel value. Stopping Presenter.")
                     break
 
+                # Apply blurring to the frame
+                frame = Presenter.apply_blur(frame)
+
                 logger.debug("Processing frame and detections in Presenter.")
                 # Process the frame and detections (implement your logic here)
                 logger.debug(f"Frame: {frame}, Detections: {detections}")
+
         except Exception as e:
             logger.error(f"Error in Presenter: {e}", exc_info=True)
         finally:
             logger.info("Presenter stopped.")
+
+    @staticmethod
+    def apply_blur(frame):
+        # Apply Gaussian blur to the frame
+        return cv2.GaussianBlur(frame, (5, 5), 0)
 
     def run(self):
         logger.info("Running Presenter in the current event loop.")
