@@ -1,61 +1,40 @@
-import cv2
-import threading
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class Presenter(threading.Thread):
-    def __init__(self, output_queue, window_name="Video Presenter"):
-        """
-        Initializes the Presenter.
-        :param output_queue: queue.Queue to receive (frame, detections) from the Detector.
-        :param window_name: Name of the OpenCV window.
-        """
-        super().__init__()
+class Presenter:
+    def __init__(self, output_queue):
         self.output_queue = output_queue
-        self.window_name = window_name
-        self.stop_event = threading.Event()
+        self.stop_event = False
+        logger.info("Presenter initialized.")
+
+    async def async_run(self):
+        logger.info("Presenter started.")
+        try:
+            while not self.stop_event:
+                logger.debug("Waiting for the next item from the output queue.")
+                # Await the next item from the output queue
+                frame, detections = await self.output_queue.get()
+                logger.debug("Item retrieved from the output queue.")
+
+                if frame is None:  # Sentinel value
+                    logger.info("Received sentinel value. Stopping Presenter.")
+                    break
+
+                logger.debug("Processing frame and detections in Presenter.")
+                # Process the frame and detections (implement your logic here)
+                logger.debug(f"Frame: {frame}, Detections: {detections}")
+        except Exception as e:
+            logger.error(f"Error in Presenter: {e}", exc_info=True)
+        finally:
+            logger.info("Presenter stopped.")
 
     def run(self):
-        """
-        Starts the Presenter thread to display frames with overlays.
-        """
-        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-
-        try:
-            while not self.stop_event.is_set():
-                # Get the next (frame, detections) from the output queue
-                frame, detections = self.output_queue.get()
-
-                if frame is None:  # Sentinel value to signal end of stream
-                    break
-
-                # Draw overlays on the frame
-                self.draw_detections(frame, detections)
-
-                # Display the frame
-                cv2.imshow(self.window_name, frame)
-
-                # Exit if the user presses 'q'
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    self.stop()
-                    break
-
-        finally:
-            cv2.destroyAllWindows()
-
-    def draw_detections(self, frame, detections):
-        """
-        Draws detection overlays on the frame.
-        :param frame: The video frame.
-        :param detections: The detection metadata.
-        """
-        for detection in detections:
-            if detection["type"] == "edge_map":
-                # Example: Overlay the edge map on the frame
-                edges = detection["data"]
-                frame[edges > 0] = [0, 255, 0]  # Highlight edges in green
+        logger.info("Running Presenter in the current event loop.")
+        asyncio.run(self.async_run())
 
     def stop(self):
-        """
-        Signals the thread to stop processing.
-        """
-        self.stop_event.set()
+        logger.info("Stop signal received for Presenter.")
+        self.stop_event = True

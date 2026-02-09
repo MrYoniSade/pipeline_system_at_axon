@@ -1,78 +1,80 @@
 import asyncio
-import cv2
-import threading
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
+logger = logging.getLogger(__name__)
 
-class Detector(threading.Thread):
+
+class Detector:
     def __init__(self, input_queue, output_queue, detection_callback=None, max_workers=4, loop=None):
         """
         Initializes the Detector.
         :param input_queue: asyncio.Queue to receive frames from the Streamer.
-        :param output_queue: queue.Queue to send (frame, detections) to the Presenter.
+        :param output_queue: asyncio.Queue to send (frame, detections) to the Presenter.
         :param detection_callback: Optional callback function to process detections.
         :param max_workers: Maximum number of threads in the thread pool.
-        :param loop: The asyncio event loop.
+        :param loop: The asyncio event loop associated with the queues.
         """
-        super().__init__()
         self.input_queue = input_queue
         self.output_queue = output_queue
         self.detection_callback = detection_callback
-        self.stop_event = threading.Event()
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
-        self.loop = loop
+        self.stop_event = asyncio.Event()
+        self.loop = loop or asyncio.get_event_loop()  # Use the provided loop or get the current event loop
+        logger.info("Detector initialized.")
 
-    def run(self):
+    async def start(self):
         """
-        Starts processing frames from the input queue and performs detection.
+        Starts the Detector to process frames from the input queue.
         """
+        logger.info("Detector started.")
         try:
             while not self.stop_event.is_set():
-                # Get the next frame from the input queue (thread-safe)
-                frame = asyncio.run_coroutine_threadsafe(self.input_queue.get(), self.loop).result()
-                if frame is None:  # Sentinel value to signal end of stream
-                    self.output_queue.put((None, None))  # Propagate sentinel
+                frame = await self.input_queue.get()
+                if frame is None:  # Sentinel value to stop processing
+                    logger.info("Received sentinel value. Stopping Detector.")
                     break
-
-                # Submit detection to the thread pool
-                self.executor.submit(self.process_frame, frame)
-
+                await asyncio.get_event_loop().run_in_executor(
+                    self.executor, self.process_frame, frame
+                )
         except Exception as e:
-            print(f"Error in Detector: {e}")
-
+            logger.error(f"Error in Detector: {e}", exc_info=True)
         finally:
-            self.executor.shutdown(wait=True)
+            # Ensure the sentinel value is added to the output queue in the correct loop
+            asyncio.run_coroutine_threadsafe(
+                self.output_queue.put((None, None)), self.loop
+            )
+            logger.info("Detector stopped.")
 
     def process_frame(self, frame):
         """
-        Processes a single frame and pushes the result to the output queue.
+        Processes a single frame and sends the result to the output queue.
+        :param frame: The frame to process.
         """
-        detections = self.detect(frame)
+        try:
+            # Perform detection logic (replace with actual detection logic)
+            detections = self.detect(frame)
 
-        # Call the detection callback if provided
-        if self.detection_callback:
-            self.detection_callback(frame, detections)
+            # Use asyncio.run_coroutine_threadsafe to put the result in the output queue
+            asyncio.run_coroutine_threadsafe(
+                self.output_queue.put((frame, detections)),
+                self.loop  # Pass the event loop associated with the asyncio.Queue
+            )
+        except Exception as e:
+            logger.error(f"Error processing frame: {e}", exc_info=True)
 
-        # Push the frame and detections to the output queue
-        self.output_queue.put((frame, detections))
+    def detect(self, frame):
+        """
+        Placeholder for the detection logic.
+        :param frame: The frame to analyze.
+        :return: Mock detections (replace with actual detection logic).
+        """
+        # Example: Return mock detections
+        return {"detections": "mock_result"}
 
     def stop(self):
         """
-        Signals the thread to stop processing.
+        Stops the Detector by setting the stop event.
         """
+        logger.info("Stop signal received for Detector.")
         self.stop_event.set()
-
-    @staticmethod
-    def detect(frame):
-        """
-        Performs object detection on a single frame.
-        :param frame: The video frame to process.
-        :return: A list of detections (e.g., bounding boxes, labels, etc.).
-        """
-        # Example: Convert the frame to grayscale and detect edges
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray_frame, 100, 200)
-
-        # Example detection result (replace with actual detection logic)
-        detections = [{"type": "edge_map", "data": edges}]
-        return detections
