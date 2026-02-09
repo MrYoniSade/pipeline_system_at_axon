@@ -2,6 +2,7 @@ import asyncio
 import queue
 from src.streamer import Streamer
 from src.detector import Detector
+from src.presenter import Presenter
 
 
 def detection_callback(detections):
@@ -26,14 +27,20 @@ async def main(video_path):
     # Initialize the Detector
     detector = Detector(input_queue, output_queue, detection_callback=detection_callback, loop=loop)
 
-    # Start the Detector thread
+    # Initialize the Presenter
+    presenter = Presenter(output_queue)
+
+    # Start the Detector and Presenter threads
     detector.start()
+    presenter.start()
 
     # Start the Streamer
     await streamer.start()
 
-    # Wait for the Detector to finish processing
+    # Wait for the Detector and Presenter to finish processing
     detector.join()
+    presenter.stop()
+    presenter.join()
 
     print("Pipeline completed.")
 
