@@ -14,6 +14,11 @@ class Presenter:
     async def async_run(self):
         logger.info("Presenter started.")
         try:
+            # Create a named window and move it to the upper-left corner
+            window_name = "Video Stream"
+            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+            cv2.moveWindow(window_name, 0, 0)
+
             while not self.stop_event:
                 logger.debug("Waiting for the next item from the output queue.")
                 # Await the next item from the output queue
@@ -28,12 +33,18 @@ class Presenter:
                 frame = Presenter.apply_blur(frame)
 
                 logger.debug("Processing frame and detections in Presenter.")
-                # Process the frame and detections (implement your logic here)
-                logger.debug(f"Frame: {frame}, Detections: {detections}")
+                # Display the frame in the upper-left corner
+                cv2.imshow(window_name, frame)
+
+                # Wait for a short period to allow real-time display
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    logger.info("Quit signal received. Stopping Presenter.")
+                    break
 
         except Exception as e:
             logger.error(f"Error in Presenter: {e}", exc_info=True)
         finally:
+            cv2.destroyAllWindows()
             logger.info("Presenter stopped.")
 
     @staticmethod
