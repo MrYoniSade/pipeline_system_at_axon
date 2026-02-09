@@ -1,8 +1,6 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import asyncio
-
-import cv2
 import numpy as np
 
 from src.presenter import Presenter
@@ -12,23 +10,22 @@ class TestPresenter(unittest.IsolatedAsyncioTestCase):
     @patch("cv2.imshow")
     @patch("cv2.waitKey", side_effect=[-1, ord('q')])  # Simulate 'q' key press
     @patch("cv2.destroyAllWindows")
-    async def test_presenter_displays_frames(self, mock_destroy, mock_wait_key, mock_imshow):
+    async def test_presenter_displays_frames(self, _, __, ___):
         # Create a mock asyncio queue
         mock_queue = asyncio.Queue()
-        await mock_queue.put(("frame1", [{"type": "edge_map", "data": "mock_edge_data"}]))
+        # Provide a valid NumPy array as the frame and detections as a list of tuples
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)  # Example blank frame
+        await mock_queue.put((frame, [(10, 20, 30, 40)]))  # Example detection
         await mock_queue.put((None, None))  # Sentinel value to stop the Presenter
 
         # Initialize the Presenter
         presenter = Presenter(mock_queue)
 
-        # Mock the draw_detections method to avoid actual drawing logic
-        presenter.draw_detections = MagicMock()
-
         # Run the Presenter asynchronously
         await presenter.async_run()
 
     @patch("cv2.destroyAllWindows")
-    async def test_presenter_handles_empty_queue(self, mock_destroy):
+    async def test_presenter_handles_empty_queue(self, _):
         # Create a mock asyncio queue with a sentinel value
         mock_queue = asyncio.Queue()
         await mock_queue.put((None, None))  # Sentinel value to stop the Presenter
